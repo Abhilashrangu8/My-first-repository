@@ -1,0 +1,87 @@
+rm(list=ls())
+setwd('D:\\mySpace\\Loan_Prediction2')
+d<-read.csv("train_u6lujuX.csv", header=T)
+#Preprocessing
+d<-d[,-1]
+str(d)
+summary(d)
+library(car)
+#Gender column
+library(DMwR)
+d=centralImputation(d)
+summary(d)
+d$Gender[d$Gender=='']<-'Female'
+d$Gender<-factor(d$Gender)
+
+
+#Married column
+d$Married[d$Married=='']='No'
+d$Married<-factor(d$Married)
+
+#Dependents column
+d$Dependents[d$Dependents=='']<-0
+d$Dependents<-factor(d$Dependents)
+
+#Employed
+g<-c(subset(d$Self_Employed,d$Self_Employed==''))
+set.seed(12)
+i<-sample(seq(1:32),16)
+g[i]='Yes'
+g[-i]='No'
+d$Self_Employed[d$Self_Employed=='']<-g
+summary(d$Self_Employed)
+d$Self_Employed<-factor(d$Self_Employed)
+
+summary(d$ApplicantIncome)
+Boxplot(d$ApplicantIncome)
+sum(d$ApplicantIncome > 20000)
+d <-subset(d, d$ApplicantIncome < 20000)
+Boxplot(d$CoapplicantIncome)
+summary(d$CoapplicantIncome)
+d <-subset(d, d$CoapplicantIncome < 10000)
+d$totalincome <- d$ApplicantIncome + d$CoapplicantIncome
+d <- subset(d, d$totalincome < 20000)
+plot(d, pch = 19 , col = 'steelblue')
+d1 <- d[,-13]
+d2 <- d[, -c(6,7)]
+
+library(caTools)
+set.seed(123)
+sample <- sample.split(d1$Loan_Status, SplitRatio = 0.75)
+train1 <- subset(d1,sample == TRUE)
+test1 <- subset(d1, sample == FALSE)
+train2 <- subset(d2,sample == TRUE)
+test2 <- subset(d2, sample == FALSE)
+lr1 <- glm(Loan_Status ~ ., family = 'binomial', train1)
+summary(lr1)
+lr2 <- glm(Loan_Status ~ LoanAmount + Credit_History
+                         + Property_Area, family = 'binomial', train1)
+summary(lr2)
+lr3 <- glm(Loan_Status ~ Credit_History + Property_Area,
+                     family = 'binomial', train1)
+summary(lr3)
+
+lr4 <- glm(Loan_Status ~ ., family = 'binomial', train2)
+summary(lr4)
+
+lr5 <- glm(Loan_Status ~ Married + Credit_History 
+                            + Property_Area  + Credit_History, 
+                              family = 'binomial', train2)
+summary(lr5)
+
+library(MASS)
+lr1aic <- stepAIC(lr1, direction = 'both')
+summary(lr1aic)
+
+lr4aic <- stepAIC(lr4, direction = 'both')
+summary(lr4aic)
+
+predtrain2<-predict(lr4aic,type='response', newdata = train2)
+table(train2$Loan_Status, predtrain2 > 0.5)
+accuracy = (60 + 306)/(60+4+76+306)
+accuracy
+
+predtest2 <- predict(lr4aic, type = 'response', newdata = test2)
+table(test2$Loan_Status, predtest2 > 0.5)
+accuracy_test <- (20+101)/(20+2+26+101)
+accuracy_test
